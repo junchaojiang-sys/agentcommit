@@ -1,0 +1,364 @@
+$ agentcommit --help
+Usage: agentcommit [options] [command]
+
+Transactional safety for AI agents. Preview, commit, and safely roll back agent
+changes.
+
+Options:
+  --version                    show version
+  -h, --help                   display help for command
+
+Commands:
+  init                         initialize an AgentCommit workspace in the
+                               current directory
+  run [options] [command...]   run an agent command inside a protected session
+  status                       show the current or latest session summary
+  diff [path]                  show the session diff (text diff for text files,
+                               metadata for binaries)
+  commit                       accept the current session changes (this is not a
+                               Git commit)
+  rollback [options]           safely restore the workspace to the session start
+                               state
+  restore [options] <path...>  restore a single path from the session snapshot
+  history                      list past sessions of this workspace
+  show <id>                    show details of one historical session
+  doctor [options]             read-only diagnosis of permissions, state
+                               directory, sessions, and platform
+  gc                           reserved cleanup command (disabled in 0.1 alpha)
+  unlock [options]             remove a proven-stale workspace lock (requires
+                               session id confirmation)
+  resolve [options]            explicitly resolve a crashed-wrapper session
+                               (interactive; evidence preserved)
+  purge                        reserved full-cleanup command (disabled in 0.1
+                               alpha)
+  agent                        manage registered agent launch commands
+  help [command]               display help for command
+
+$ agentcommit init
+{"root":"<local-path>","configPath":"<local-path>","config":{"version":1,"workspaceId":"UUID-1","agents":{},"maxFileSizeBytes":104857600}}
+
+$ agentcommit run --allow-unprotected -- node -e require('node:fs').writeFileSync('readme.txt','line one edited\n');require('node:fs').writeFileSync('created-by-agent.txt','new\n');require('node:fs').rmSync('obsolete.txt')
+{"sessionId":"UUID-2","protection":{"protectedFiles":4,"ignoredEntries":0,"ignoredBoundaries":[],"symlinks":0,"unreadableEntries":0,"unprotectedPaths":[],"byReason":{}},"maxFileSizeBytes":104857600}
+{"session":{"id":"UUID-2","workspaceId":"UUID-1","agent":{"kind":"generic","command":"<local-path>"},"startedAt":"2026-09-14T00:07:34.874Z","status":"review","changes":[{"path":"created-by-agent.txt","kind":"created","post":{"type":"file","hash":"7aa7a5359173d05b63cfd682e3c38487f3cb4f7f1d60659fe59fab1505977d4c","size":4,"protected":true},"assessment":"ready"},{"path":"obsolete.txt","kind":"deleted","pre":{"type":"file","hash":"c0c561775aee222ca6eb92cc98eb1ea6c1699d67dd1827620fce0d6c4e5ea581","size":10,"protected":true},"assessment":"ready"},{"path":"readme.txt","kind":"modified","pre":{"type":"file","hash":"31f21b1dae81d3f32f40e38134bc688e6f7df4f08dde1d7d2cda3c4b59104e1c","size":9,"protected":true},"post":{"type":"file","hash":"6aa1284f1766ef653608711384844f7eea1ae48ebb938312733fb7afc4d1a757","size":16,"protected":true},"assessment":"ready"}],"conflicts":[],"preManifestRef":"UUID-3","postManifestRef":"UUID-4","verification":{"exitCode":0,"checks":["post-scan","change-set"]},"endedAt":"2026-09-14T00:07:34.993Z"},"exitCode":0,"signal":null}
+[stderr] Protection boundary: ignored/unprotected paths cannot be restored. CAS stores plaintext. Background descendants can write after the main process exits; Post has no grace delay. V0.1 does not attribute writes to processes.
+
+$ agentcommit status
+{
+  "session": {
+    "id": "UUID-2",
+    "workspaceId": "UUID-1",
+    "agent": {
+      "kind": "generic",
+      "command": "<local-path>"
+    },
+    "startedAt": "2026-09-14T00:07:34.874Z",
+    "status": "review",
+    "changes": [
+      {
+        "path": "created-by-agent.txt",
+        "kind": "created",
+        "post": {
+          "type": "file",
+          "hash": "7aa7a5359173d05b63cfd682e3c38487f3cb4f7f1d60659fe59fab1505977d4c",
+          "size": 4,
+          "protected": true
+        },
+        "assessment": "ready"
+      },
+      {
+        "path": "obsolete.txt",
+        "kind": "deleted",
+        "pre": {
+          "type": "file",
+          "hash": "c0c561775aee222ca6eb92cc98eb1ea6c1699d67dd1827620fce0d6c4e5ea581",
+          "size": 10,
+          "protected": true
+        },
+        "assessment": "ready"
+      },
+      {
+        "path": "readme.txt",
+        "kind": "modified",
+        "pre": {
+          "type": "file",
+          "hash": "31f21b1dae81d3f32f40e38134bc688e6f7df4f08dde1d7d2cda3c4b59104e1c",
+          "size": 9,
+          "protected": true
+        },
+        "post": {
+          "type": "file",
+          "hash": "6aa1284f1766ef653608711384844f7eea1ae48ebb938312733fb7afc4d1a757",
+          "size": 16,
+          "protected": true
+        },
+        "assessment": "ready"
+      }
+    ],
+    "conflicts": [],
+    "preManifestRef": "UUID-3",
+    "postManifestRef": "UUID-4",
+    "verification": {
+      "exitCode": 0,
+      "checks": [
+        "post-scan",
+        "change-set"
+      ]
+    },
+    "endedAt": "2026-09-14T00:07:34.993Z"
+  },
+  "protection": {
+    "protectedFiles": 4,
+    "ignoredEntries": 0,
+    "ignoredBoundaries": [],
+    "symlinks": 0,
+    "unreadableEntries": 0,
+    "unprotectedPaths": [],
+    "byReason": {}
+  }
+}
+
+$ agentcommit diff readme.txt
+{"protection":{"protectedFiles":4,"ignoredEntries":0,"ignoredBoundaries":[],"symlinks":0,"unreadableEntries":0,"unprotectedPaths":[],"byReason":{}},"note":"Unprotected boundaries cannot be restored."}
+===================================================================
+--- a/readme.txt	pre
++++ b/readme.txt	post
+@@ -1,1 +1,1 @@
+-line one
++line one edited
+
+
+$ agentcommit commit
+AgentCommit transaction accepted.
+This did NOT create a Git commit.
+{"id":"UUID-2","workspaceId":"UUID-1","agent":{"kind":"generic","command":"<local-path>"},"startedAt":"2026-09-14T00:07:34.874Z","status":"committed","changes":[{"path":"created-by-agent.txt","kind":"created","post":{"type":"file","hash":"7aa7a5359173d05b63cfd682e3c38487f3cb4f7f1d60659fe59fab1505977d4c","size":4,"protected":true},"assessment":"ready"},{"path":"obsolete.txt","kind":"deleted","pre":{"type":"file","hash":"c0c561775aee222ca6eb92cc98eb1ea6c1699d67dd1827620fce0d6c4e5ea581","size":10,"protected":true},"assessment":"ready"},{"path":"readme.txt","kind":"modified","pre":{"type":"file","hash":"31f21b1dae81d3f32f40e38134bc688e6f7df4f08dde1d7d2cda3c4b59104e1c","size":9,"protected":true},"post":{"type":"file","hash":"6aa1284f1766ef653608711384844f7eea1ae48ebb938312733fb7afc4d1a757","size":16,"protected":true},"assessment":"ready"}],"conflicts":[],"preManifestRef":"UUID-3","postManifestRef":"UUID-4","verification":{"exitCode":0,"checks":["post-scan","change-set"]},"endedAt":"2026-09-14T00:07:35.629Z"}
+
+$ agentcommit run --allow-unprotected -- node -e require('node:fs').writeFileSync('s1.txt','ONE-EDITED');require('node:fs').writeFileSync('s2.txt','TWO-EDITED')
+{"sessionId":"UUID-5","protection":{"protectedFiles":6,"ignoredEntries":1,"ignoredBoundaries":[{"path":".git","kind":"directory","source":"builtin","rule":".git/**","reason":"ignored-by-builtin-rule"}],"symlinks":0,"unreadableEntries":0,"unprotectedPaths":[],"byReason":{}},"maxFileSizeBytes":104857600}
+{"session":{"id":"UUID-5","workspaceId":"UUID-1","agent":{"kind":"generic","command":"<local-path>"},"startedAt":"2026-09-14T00:07:35.946Z","status":"review","changes":[{"path":"s1.txt","kind":"modified","pre":{"type":"file","hash":"7692c3ad3540bb803c020b3aee66cd8887123234ea0c6e7143c0add73ff431ed","size":3,"protected":true},"post":{"type":"file","hash":"34b99fc7840c0174bad8a7d3de07b002c3663af50fd63b99f87d4a6c7e222447","size":10,"protected":true},"assessment":"ready"},{"path":"s2.txt","kind":"modified","pre":{"type":"file","hash":"3fc4ccfe745870e2c0d99f71f30ff0656c8dedd41cc1d7d3d376b0dbe685e2f3","size":3,"protected":true},"post":{"type":"file","hash":"1ed7e3d0e3d0d82539cb9068d1b83b7ffdd0a08adca235c160a21495e7b8c0a4","size":10,"protected":true},"assessment":"ready"}],"conflicts":[],"preManifestRef":"UUID-6","postManifestRef":"UUID-7","verification":{"exitCode":0,"checks":["post-scan","change-set"]},"endedAt":"2026-09-14T00:07:36.076Z"},"exitCode":0,"signal":null}
+[stderr] Protection boundary: ignored/unprotected paths cannot be restored. CAS stores plaintext. Background descendants can write after the main process exits; Post has no grace delay. V0.1 does not attribute writes to processes.
+
+$ agentcommit restore s1.txt
+{"sessionId":"UUID-5","planDigest":"15005c53180d72e495914d2b22dbb2ccc6450ba8907cc029026a5b21592c0dc9","scope":"s1.txt","conflicts":[],"blocked":[],"coverageWarnings":[]}
+{"status":"succeeded","workspaceId":"UUID-1","sessionId":"UUID-5","planDigest":"15005c53180d72e495914d2b22dbb2ccc6450ba8907cc029026a5b21592c0dc9","attemptId":"UUID-8","completedPaths":["s1.txt"],"pendingPaths":[],"conflicts":[]}
+Selected scope restored; the Session remains open for review.
+
+$ agentcommit rollback
+{"sessionId":"UUID-5","planDigest":"80b1943f0af1fdece7aef451b4ae273803b0475609c4c415eb1306a5fc3aa5d4","scope":"whole-session","conflicts":[],"blocked":[],"coverageWarnings":[]}
+{"status":"succeeded","workspaceId":"UUID-1","sessionId":"UUID-5","planDigest":"80b1943f0af1fdece7aef451b4ae273803b0475609c4c415eb1306a5fc3aa5d4","attemptId":"UUID-9","completedPaths":["s1.txt","s2.txt"],"pendingPaths":[],"conflicts":[]}
+Whole session restored.
+
+$ agentcommit run --allow-unprotected -- node -e require('node:fs').writeFileSync('c.txt','v2')
+{"sessionId":"UUID-10","protection":{"protectedFiles":7,"ignoredEntries":1,"ignoredBoundaries":[{"path":".git","kind":"directory","source":"builtin","rule":".git/**","reason":"ignored-by-builtin-rule"}],"symlinks":0,"unreadableEntries":0,"unprotectedPaths":[],"byReason":{}},"maxFileSizeBytes":104857600}
+{"session":{"id":"UUID-10","workspaceId":"UUID-1","agent":{"kind":"generic","command":"<local-path>"},"startedAt":"2026-09-14T00:07:36.643Z","status":"review","changes":[{"path":"c.txt","kind":"modified","pre":{"type":"file","hash":"3bfc269594ef649228e9a74bab00f042efc91d5acc6fbee31a382e80d42388fe","size":2,"protected":true},"post":{"type":"file","hash":"fb04dcb6970e4c3d1873de51fd5a50d7bb46b3383113602665c350ec40b5f990","size":2,"protected":true},"assessment":"ready"}],"conflicts":[],"preManifestRef":"UUID-11","postManifestRef":"UUID-12","verification":{"exitCode":0,"checks":["post-scan","change-set"]},"endedAt":"2026-09-14T00:07:36.777Z"},"exitCode":0,"signal":null}
+[stderr] Protection boundary: ignored/unprotected paths cannot be restored. CAS stores plaintext. Background descendants can write after the main process exits; Post has no grace delay. V0.1 does not attribute writes to processes.
+
+$ agentcommit rollback
+{"sessionId":"UUID-10","planDigest":"9383b431d148a7efab519e664b1ac9e6141bdce677c663f33617e8aa26d065f9","scope":"whole-session","conflicts":[{"path":"c.txt","kind":"user-modified-after-session","currentHash":"f3b827d633b0c10891fdf9ea0dde68c0a93fc0216e472012c8c829d89ba08ec2","expectedPostHash":"fb04dcb6970e4c3d1873de51fd5a50d7bb46b3383113602665c350ec40b5f990","message":"Current differs from the session post state (user/external edit)","currentFingerprint":"file:f3b827d633b0c10891fdf9ea0dde68c0a93fc0216e472012c8c829d89ba08ec2:-"}],"blocked":[],"coverageWarnings":[]}
+{"status":"rejected","workspaceId":"UUID-1","sessionId":"UUID-10","planDigest":"9383b431d148a7efab519e664b1ac9e6141bdce677c663f33617e8aa26d065f9","completedPaths":[],"pendingPaths":["c.txt"],"conflicts":[{"path":"c.txt","kind":"user-modified-after-session","currentHash":"f3b827d633b0c10891fdf9ea0dde68c0a93fc0216e472012c8c829d89ba08ec2","expectedPostHash":"fb04dcb6970e4c3d1873de51fd5a50d7bb46b3383113602665c350ec40b5f990","message":"Current differs from the session post state (user/external edit)","currentFingerprint":"file:f3b827d633b0c10891fdf9ea0dde68c0a93fc0216e472012c8c829d89ba08ec2:-"}]}
+RESTORE_REJECTED: preflight refused; no recovery actions were started by this invocation.
+
+$ agentcommit doctor
+{
+  "node": "v24.19.0",
+  "platform": "win32",
+  "workspaceRoot": "<local-path>",
+  "stateRoot": "<local-path>",
+  "lock": {
+    "state": "absent"
+  },
+  "admission": {
+    "eligible": false,
+    "blockers": [
+      "UUID-10 (unfinished restore journal)",
+      "UUID-10 (status: review)"
+    ]
+  },
+  "boundaries": [
+    "No native sandbox or power-loss transaction guarantee.",
+    "Agent binaries have not been validated by this command.",
+    "CAS stores protected file content in plaintext.",
+    "The CAS check here is an EXISTENCE/type check with a reported range; content integrity is enforced by the read path, which re-hashes every byte it returns.",
+    "This diagnosis is read-only; it never repairs, deletes, or unlocks anything."
+  ],
+  "diagnosis": {
+    "overall": "attention",
+    "findings": [
+      {
+        "code": "session-review-pending",
+        "severity": "attention",
+        "what": "Session UUID-10 finished and waits for review.",
+        "impact": "The workspace keeps its lock against new runs until the session is committed or rolled back.",
+        "blockedActions": [],
+        "safeEntries": [
+          "agentcommit status",
+          "agentcommit diff",
+          "agentcommit commit",
+          "agentcommit rollback"
+        ],
+        "humanConfirmation": "",
+        "sessionId": "UUID-10"
+      },
+      {
+        "code": "protection-gaps",
+        "severity": "info",
+        "what": "The latest manifest records protection gaps: 0 unprotected path(s), 1 ignored, 0 unreadable.",
+        "impact": "Those paths are not protected: rollback cannot restore them, and \"fully reversible\" never holds while they exist.",
+        "blockedActions": [],
+        "safeEntries": [
+          "agentcommit run prints the full Protection Summary with per-path reasons before every session."
+        ],
+        "humanConfirmation": "",
+        "counters": {
+          "unprotectedPaths": 0,
+          "ignoredEntries": 1,
+          "unreadableEntries": 0
+        }
+      },
+      {
+        "code": "platform-win32-notes",
+        "severity": "info",
+        "what": "Windows (static capability notes): POSIX rwx-bit restore is not verified here (no ACL promise); creating file/dir symlinks needs Developer Mode or admin privilege (junctions work unprivileged).",
+        "impact": "Verification boundary: rwx-bit restore and symlink capability are bounded by the platform this diagnosis actually ran on. Cross-platform behavior is verified by GitHub-hosted CI on Windows/Linux/macOS (Node 22/24); local manual development has been primarily Windows, so Linux/macOS are not widely verified on user machines.",
+        "blockedActions": [],
+        "safeEntries": [],
+        "humanConfirmation": ""
+      }
+    ]
+  }
+}
+
+$ agentcommit doctor --report <sandbox-path>
+{
+  "node": "v24.19.0",
+  "platform": "win32",
+  "workspaceRoot": "<local-path>",
+  "stateRoot": "<local-path>",
+  "lock": {
+    "state": "absent"
+  },
+  "admission": {
+    "eligible": false,
+    "blockers": [
+      "UUID-10 (unfinished restore journal)",
+      "UUID-10 (status: review)"
+    ]
+  },
+  "boundaries": [
+    "No native sandbox or power-loss transaction guarantee.",
+    "Agent binaries have not been validated by this command.",
+    "CAS stores protected file content in plaintext.",
+    "The CAS check here is an EXISTENCE/type check with a reported range; content integrity is enforced by the read path, which re-hashes every byte it returns.",
+    "This diagnosis is read-only; it never repairs, deletes, or unlocks anything."
+  ],
+  "diagnosis": {
+    "overall": "attention",
+    "findings": [
+      {
+        "code": "session-review-pending",
+        "severity": "attention",
+        "what": "Session UUID-10 finished and waits for review.",
+        "impact": "The workspace keeps its lock against new runs until the session is committed or rolled back.",
+        "blockedActions": [],
+        "safeEntries": [
+          "agentcommit status",
+          "agentcommit diff",
+          "agentcommit commit",
+          "agentcommit rollback"
+        ],
+        "humanConfirmation": "",
+        "sessionId": "UUID-10"
+      },
+      {
+        "code": "protection-gaps",
+        "severity": "info",
+        "what": "The latest manifest records protection gaps: 0 unprotected path(s), 1 ignored, 0 unreadable.",
+        "impact": "Those paths are not protected: rollback cannot restore them, and \"fully reversible\" never holds while they exist.",
+        "blockedActions": [],
+        "safeEntries": [
+          "agentcommit run prints the full Protection Summary with per-path reasons before every session."
+        ],
+        "humanConfirmation": "",
+        "counters": {
+          "unprotectedPaths": 0,
+          "ignoredEntries": 1,
+          "unreadableEntries": 0
+        }
+      },
+      {
+        "code": "platform-win32-notes",
+        "severity": "info",
+        "what": "Windows (static capability notes): POSIX rwx-bit restore is not verified here (no ACL promise); creating file/dir symlinks needs Developer Mode or admin privilege (junctions work unprivileged).",
+        "impact": "Verification boundary: rwx-bit restore and symlink capability are bounded by the platform this diagnosis actually ran on. Cross-platform behavior is verified by GitHub-hosted CI on Windows/Linux/macOS (Node 22/24); local manual development has been primarily Windows, so Linux/macOS are not widely verified on user machines.",
+        "blockedActions": [],
+        "safeEntries": [],
+        "humanConfirmation": ""
+      }
+    ]
+  },
+  "reportPath": "<local-path>"
+}
+
+$ agentcommit init
+{"root":"<local-path>","configPath":"<local-path>","config":{"version":1,"workspaceId":"UUID-13","agents":{},"maxFileSizeBytes":104857600}}
+
+$ agentcommit run --allow-unprotected -- node -e require('node:fs').writeFileSync('hello.txt','after\n')
+{"sessionId":"UUID-14","protection":{"protectedFiles":2,"ignoredEntries":0,"ignoredBoundaries":[],"symlinks":0,"unreadableEntries":0,"unprotectedPaths":[],"byReason":{}},"maxFileSizeBytes":104857600}
+{"session":{"id":"UUID-14","workspaceId":"UUID-13","agent":{"kind":"generic","command":"<local-path>"},"startedAt":"2026-09-14T00:07:37.824Z","status":"review","changes":[{"path":"hello.txt","kind":"created","post":{"type":"file","hash":"7b9a72466d3960eb2aacccfc848939453490db0678bd4725def3f789b891c919","size":6,"protected":true},"assessment":"ready"}],"conflicts":[],"preManifestRef":"UUID-15","postManifestRef":"UUID-16","verification":{"exitCode":0,"checks":["post-scan","change-set"]},"endedAt":"2026-09-14T00:07:37.948Z"},"exitCode":0,"signal":null}
+[stderr] Protection boundary: ignored/unprotected paths cannot be restored. CAS stores plaintext. Background descendants can write after the main process exits; Post has no grace delay. V0.1 does not attribute writes to processes.
+
+$ agentcommit status
+{
+  "session": {
+    "id": "UUID-14",
+    "workspaceId": "UUID-13",
+    "agent": {
+      "kind": "generic",
+      "command": "<local-path>"
+    },
+    "startedAt": "2026-09-14T00:07:37.824Z",
+    "status": "review",
+    "changes": [
+      {
+        "path": "hello.txt",
+        "kind": "created",
+        "post": {
+          "type": "file",
+          "hash": "7b9a72466d3960eb2aacccfc848939453490db0678bd4725def3f789b891c919",
+          "size": 6,
+          "protected": true
+        },
+        "assessment": "ready"
+      }
+    ],
+    "conflicts": [],
+    "preManifestRef": "UUID-15",
+    "postManifestRef": "UUID-16",
+    "verification": {
+      "exitCode": 0,
+      "checks": [
+        "post-scan",
+        "change-set"
+      ]
+    },
+    "endedAt": "2026-09-14T00:07:37.948Z"
+  },
+  "protection": {
+    "protectedFiles": 3,
+    "ignoredEntries": 0,
+    "ignoredBoundaries": [],
+    "symlinks": 0,
+    "unreadableEntries": 0,
+    "unprotectedPaths": [],
+    "byReason": {}
+  }
+}
+
+$ agentcommit diff
+{"protection":{"protectedFiles":3,"ignoredEntries":0,"ignoredBoundaries":[],"symlinks":0,"unreadableEntries":0,"unprotectedPaths":[],"byReason":{}},"note":"Unprotected boundaries cannot be restored."}
+{"path":"hello.txt","mode":"binary","meta":{"post":{"type":"file","hash":"7b9a72466d3960eb2aacccfc848939453490db0678bd4725def3f789b891c919","size":6}}}
+
+$ agentcommit rollback
+{"sessionId":"UUID-14","planDigest":"d3d3e667c6e2a5330891dc3c390eee7ee7c7a9ed90e5847de6e60186e952518d","scope":"whole-session","conflicts":[],"blocked":[],"coverageWarnings":[]}
+{"status":"succeeded","workspaceId":"UUID-13","sessionId":"UUID-14","planDigest":"d3d3e667c6e2a5330891dc3c390eee7ee7c7a9ed90e5847de6e60186e952518d","attemptId":"UUID-17","completedPaths":["hello.txt"],"pendingPaths":[],"conflicts":[]}
+Whole session restored.
+

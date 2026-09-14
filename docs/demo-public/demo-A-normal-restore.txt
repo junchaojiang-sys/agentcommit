@@ -1,0 +1,108 @@
+Demo A — normal restore (recorded 2026-09-14T00:07:38.548Z, Windows, agentcommit 0.1.0-alpha.1 installed from the candidate tarballs).
+Flow: init -> agent edits two files -> status/diff show the ChangeSet -> rollback -> files are back.
+$ # SYNTHETIC AGENT DEMO — the "agent" is a one-line Node script, not a model agent.
+
+$ agentcommit init
+{"root":"<local-path>","configPath":"<local-path>","config":{"version":1,"workspaceId":"UUID-1","agents":{},"maxFileSizeBytes":104857600}}
+
+$ agentcommit run --allow-unprotected -- node -e require('node:fs').writeFileSync('config.txt','edited-a\n');require('node:fs').writeFileSync('util.py','print("edited-b")\n')
+{"sessionId":"UUID-2","protection":{"protectedFiles":4,"ignoredEntries":0,"ignoredBoundaries":[],"symlinks":0,"unreadableEntries":0,"unprotectedPaths":[],"byReason":{}},"maxFileSizeBytes":104857600}
+{"session":{"id":"UUID-2","workspaceId":"UUID-1","agent":{"kind":"generic","command":"<local-path>"},"startedAt":"2026-09-14T00:07:38.852Z","status":"review","changes":[{"path":"config.txt","kind":"modified","pre":{"type":"file","hash":"cca1ffcbd8f7b2f6e1d372ec1ef5478bd1f18833a007bea2bada2ea9aa8fb5a2","size":11,"protected":true},"post":{"type":"file","hash":"0c018c0b72e8aa40724b0ba5fee0156e2324fa18b9fb3ed60319ed5afacc0070","size":9,"protected":true},"assessment":"ready"},{"path":"util.py","kind":"modified","pre":{"type":"file","hash":"15399b325f5083e2510aea26327964cca16f492487b700242ebd97c418104e8a","size":20,"protected":true},"post":{"type":"file","hash":"da4a4f58fa08d18e0a228881673ef39cff00629b454a6df77ee932833c0f9628","size":18,"protected":true},"assessment":"ready"}],"conflicts":[],"preManifestRef":"UUID-3","postManifestRef":"UUID-4","verification":{"exitCode":0,"checks":["post-scan","change-set"]},"endedAt":"2026-09-14T00:07:38.948Z"},"exitCode":0,"signal":null}
+[stderr] Protection boundary: ignored/unprotected paths cannot be restored. CAS stores plaintext. Background descendants can write after the main process exits; Post has no grace delay. V0.1 does not attribute writes to processes.
+
+$ agentcommit status
+{
+  "session": {
+    "id": "UUID-2",
+    "workspaceId": "UUID-1",
+    "agent": {
+      "kind": "generic",
+      "command": "<local-path>"
+    },
+    "startedAt": "2026-09-14T00:07:38.852Z",
+    "status": "review",
+    "changes": [
+      {
+        "path": "config.txt",
+        "kind": "modified",
+        "pre": {
+          "type": "file",
+          "hash": "cca1ffcbd8f7b2f6e1d372ec1ef5478bd1f18833a007bea2bada2ea9aa8fb5a2",
+          "size": 11,
+          "protected": true
+        },
+        "post": {
+          "type": "file",
+          "hash": "0c018c0b72e8aa40724b0ba5fee0156e2324fa18b9fb3ed60319ed5afacc0070",
+          "size": 9,
+          "protected": true
+        },
+        "assessment": "ready"
+      },
+      {
+        "path": "util.py",
+        "kind": "modified",
+        "pre": {
+          "type": "file",
+          "hash": "15399b325f5083e2510aea26327964cca16f492487b700242ebd97c418104e8a",
+          "size": 20,
+          "protected": true
+        },
+        "post": {
+          "type": "file",
+          "hash": "da4a4f58fa08d18e0a228881673ef39cff00629b454a6df77ee932833c0f9628",
+          "size": 18,
+          "protected": true
+        },
+        "assessment": "ready"
+      }
+    ],
+    "conflicts": [],
+    "preManifestRef": "UUID-3",
+    "postManifestRef": "UUID-4",
+    "verification": {
+      "exitCode": 0,
+      "checks": [
+        "post-scan",
+        "change-set"
+      ]
+    },
+    "endedAt": "2026-09-14T00:07:38.948Z"
+  },
+  "protection": {
+    "protectedFiles": 4,
+    "ignoredEntries": 0,
+    "ignoredBoundaries": [],
+    "symlinks": 0,
+    "unreadableEntries": 0,
+    "unprotectedPaths": [],
+    "byReason": {}
+  }
+}
+
+$ agentcommit diff
+{"protection":{"protectedFiles":4,"ignoredEntries":0,"ignoredBoundaries":[],"symlinks":0,"unreadableEntries":0,"unprotectedPaths":[],"byReason":{}},"note":"Unprotected boundaries cannot be restored."}
+===================================================================
+--- a/config.txt	pre
++++ b/config.txt	post
+@@ -1,1 +1,1 @@
+-original-a
++edited-a
+
+===================================================================
+--- a/util.py	pre
++++ b/util.py	post
+@@ -1,1 +1,1 @@
+-print("original-b")
++print("edited-b")
+
+
+$ agentcommit rollback
+{"sessionId":"UUID-2","planDigest":"8e693423cae539127c045c6c5ab3153d3090e205899a1ffbc4ccb09dfa905901","scope":"whole-session","conflicts":[],"blocked":[],"coverageWarnings":[]}
+{"status":"succeeded","workspaceId":"UUID-1","sessionId":"UUID-2","planDigest":"8e693423cae539127c045c6c5ab3153d3090e205899a1ffbc4ccb09dfa905901","attemptId":"UUID-5","completedPaths":["config.txt","util.py"],"pendingPaths":[],"conflicts":[]}
+Whole session restored.
+
+$ type config.txt
+original-a
+$ type util.py
+print("original-b")

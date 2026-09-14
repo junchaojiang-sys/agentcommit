@@ -1,0 +1,20 @@
+Demo B — your newer edit wins (recorded 2026-09-14T00:07:39.475Z).
+Flow: init -> agent edits a file -> YOU edit the same file -> rollback is REFUSED -> this attempt writes nothing -> your edit survives.
+$ # SYNTHETIC AGENT DEMO — the "agent" is a one-line Node script, not a model agent.
+
+$ agentcommit init
+{"root":"<local-path>","configPath":"<local-path>","config":{"version":1,"workspaceId":"UUID-1","agents":{},"maxFileSizeBytes":104857600}}
+
+$ agentcommit run --allow-unprotected -- node -e require('node:fs').writeFileSync('app.ts','agent-edit\n')
+{"sessionId":"UUID-2","protection":{"protectedFiles":3,"ignoredEntries":0,"ignoredBoundaries":[],"symlinks":0,"unreadableEntries":0,"unprotectedPaths":[],"byReason":{}},"maxFileSizeBytes":104857600}
+{"session":{"id":"UUID-2","workspaceId":"UUID-1","agent":{"kind":"generic","command":"<local-path>"},"startedAt":"2026-09-14T00:07:39.816Z","status":"review","changes":[{"path":"app.ts","kind":"modified","pre":{"type":"file","hash":"2d27fbdf4e8ca207afbfa388ca9172fbcc6c70e534af2476b3b704f87debadcf","size":3,"protected":true},"post":{"type":"file","hash":"1b10151e13c2f08ceaa99e718f737d8f8400d650a1fe43e5f05a068b08e737d5","size":11,"protected":true},"assessment":"ready"}],"conflicts":[],"preManifestRef":"UUID-3","postManifestRef":"UUID-4","verification":{"exitCode":0,"checks":["post-scan","change-set"]},"endedAt":"2026-09-14T00:07:39.921Z"},"exitCode":0,"signal":null}
+[stderr] Protection boundary: ignored/unprotected paths cannot be restored. CAS stores plaintext. Background descendants can write after the main process exits; Post has no grace delay. V0.1 does not attribute writes to processes.
+
+$ echo user-edit > app.ts   # you, after the agent finished
+$ agentcommit rollback
+{"sessionId":"UUID-2","planDigest":"57093565d65d6883181b0c22f8078a8bbe8068af90b40b97a916e0f90c53214d","scope":"whole-session","conflicts":[],"blocked":[],"coverageWarnings":[]}
+{"status":"succeeded","workspaceId":"UUID-1","sessionId":"UUID-2","planDigest":"57093565d65d6883181b0c22f8078a8bbe8068af90b40b97a916e0f90c53214d","attemptId":"UUID-5","completedPaths":["app.ts"],"pendingPaths":[],"conflicts":[]}
+Whole session restored.
+
+$ type app.ts
+user-edit

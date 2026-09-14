@@ -1,0 +1,89 @@
+# AgentCommit P4 CI matrix (frozen scope: synthetic agents only).
+#
+# Hard rules enforced by design:
+# - No model accounts, no API keys, no Z Code CLI config, no session databases:
+#   this pipeline never reads ~/.zcode and requires no secrets. Synthetic Node
+#   child executables stand in for agents (P3 convention).
+# - No lockfile changes: install runs --frozen-lockfile against the committed
+#   pnpm-lock.yaml with pnpm pinned by the repo's packageManager field.
+# - "Workflow written" is NOT "platform passed": a platform is only marked
+#   passed after an actual run of this workflow (or a local equivalent) is
+#   recorded in docs/ evidence.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Least privilege: checkout and tooling only; no step needs a write token.
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: ${{ matrix.os }} / node ${{ matrix.node }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        # ROADMAP P4: Node 22, 24 (both LTS/stable at declaration time; engines: >=22).
+        node: [22, 24]
+    # NOTE: no job-level env using ${{ runner.temp }} — the runner context is not
+    # available when job env is evaluated, which fails the run before any job
+    # starts. Tests and docs/scripts/ci-synthetic-flow.mjs allocate their own
+    # isolated state roots, so none is needed here.
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+
+      - name: Enable pnpm from packageManager field
+        run: corepack enable
+
+      - name: Record toolchain versions
+        run: |
+          node --version
+          pnpm --version
+
+      - name: Install dependencies (frozen lockfile)
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      # Build BEFORE typecheck: workspace packages resolve @agentcommit/* types
+      # from each package's dist outputs (exports.types), which do not exist on
+      # a fresh checkout until built.
+      - name: Build
+        run: pnpm -r build
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Unit + integration tests (synthetic agents only)
+        # bench/ is a perf-recording smoke, not a correctness gate; timings are
+        # host- and antivirus-dependent and are recorded locally instead.
+        # The glob MUST be quoted: an unquoted Bash glob expands into positional
+        # filters and made the POSIX jobs run a single bench file (2026-09-09 bug).
+        run: pnpm exec vitest run --exclude 'tests/bench/**' --reporter=default --reporter=json --outputFile=vitest-results.json
+
+      - name: Publish machine-readable results into the log
+        run: cat vitest-results.json
+
+      # Integrity guard: a run that accidentally executed only one file (e.g. a
+      # glob/positional mistake) must never be judged a full pass. Checks the
+      # required suite files actually ran and no test failed.
+      - name: Suite integrity guard
+        run: node docs/scripts/ci-suite-guard.mjs
+
+      - name: Smoke
+        run: pnpm smoke
+
+      - name: Synthetic CLI end-to-end flow
+        run: node docs/scripts/ci-synthetic-flow.mjs

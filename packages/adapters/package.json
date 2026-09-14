@@ -1,0 +1,43 @@
+{
+  "name": "@agentcommit/adapters",
+  "version": "0.1.0-alpha.1",
+  "description": "Agent identity adapters for AgentCommit: Codex, Claude Code, Z Code, DeepSeek, and the generic CLI wrapper.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/junchaojiang-sys/agentcommit.git"
+  },
+  "homepage": "https://github.com/junchaojiang-sys/agentcommit#readme",
+  "bugs": {
+    "url": "https://github.com/junchaojiang-sys/agentcommit/issues"
+  },
+  "keywords": [
+    "ai-agent",
+    "coding-agent",
+    "rollback",
+    "workspace",
+    "developer-tools"
+  ]
+}

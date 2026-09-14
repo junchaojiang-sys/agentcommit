@@ -1,0 +1,55 @@
+{
+  "name": "@agentcommit/cli",
+  "version": "0.1.0-alpha.1",
+  "description": "Transactional safety for AI agents. Preview, commit, and safely roll back agent changes.",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "agentcommit": "dist/index.js"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@agentcommit/adapters": "workspace:*",
+    "@agentcommit/core": "workspace:*",
+    "commander": "^14.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/junchaojiang-sys/agentcommit.git"
+  },
+  "homepage": "https://github.com/junchaojiang-sys/agentcommit#readme",
+  "bugs": {
+    "url": "https://github.com/junchaojiang-sys/agentcommit/issues"
+  },
+  "keywords": [
+    "ai-agent",
+    "coding-agent",
+    "rollback",
+    "checkpoint",
+    "workspace",
+    "codex",
+    "claude-code",
+    "cli",
+    "developer-tools"
+  ]
+}
